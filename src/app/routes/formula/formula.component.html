@@ -1,0 +1,64 @@
+<div nz-row>
+  <!-- 公式/函数  -->
+  <div nz-col nzSpan="7" class="border-right-1">
+    <h4>公式</h4>
+    <nz-spin nzTip="公式加载中..." [nzSpinning]="funNodes.length == 0">
+      <nz-tree [nzData]="funNodes"
+               [nzVirtualHeight]="'220px'"
+               [nzVirtualMinBufferPx]="220"
+               [nzTreeTemplate]="nzTreeTemplate">
+        <ng-template #nzTreeTemplate let-node let-origin="origin">
+          <div class="custom-node">
+            <div *ngIf="!node.isLeaf">
+              <div class="folder-name">{{ node.title }}</div>
+            </div>
+            <div *ngIf="node.isLeaf"
+                 nz-popover nzPopoverPlacement="left"
+                 [nzPopoverTitle]="node.title" [nzPopoverContent]="tooltipRef"
+                 (click)="clickFun(node)">
+              <div class="file-name">{{ node.title }}</div>
+              <ng-template #tooltipRef>
+                <p>用法：{{origin.expression}}</p>
+                <p>说明：{{origin.funcComment}}</p>
+              </ng-template>
+            </div>
+          </div>
+        </ng-template>
+      </nz-tree>
+    </nz-spin>
+  </div>
+  <!-- 所有字段  -->
+  <div nz-col nzSpan="6" class="border-right-1">
+    <h4>所有字段</h4>
+    <nz-tree [nzData]="fieldNodes"
+             [nzVirtualHeight]="'220px'"
+             [nzVirtualMinBufferPx]="220"
+             [nzTreeTemplate]="fieldTemplate">
+      <ng-template #fieldTemplate let-node let-origin="origin">
+        <div class="custom-node">
+          <div *ngIf="!node.isLeaf">
+            <span>{{ node.title }}</span>
+          </div>
+          <div *ngIf="node.isLeaf" (click)="clickFieldNode(node)">
+            <span>{{ node.title }}</span>
+          </div>
+        </div>
+      </ng-template>
+    </nz-tree>
+  </div>
+  <div nz-col nzSpan=11 class="px-xs">
+    <!-- 操作符 -->
+    <div class="border-bottom-1">
+      <a nz-button nzType="link" class="ml-md text-md"
+         *ngFor="let operator of operatorList"
+         (click)="clickOperator(operator)">{{operator}}</a>
+    </div>
+    <!-- 公式 -->
+    <codemirror
+      #codemirrorRef
+      [(ngModel)]="code"
+      [config]="cmOptions"
+      (ngModelChange)="changeFormula()"></codemirror>
+    <span [class]="codeValidity === true ? 'text-green' : 'text-red'">{{errorFormulaTip}}</span>
+  </div>
+</div>

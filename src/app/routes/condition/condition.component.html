@@ -1,0 +1,218 @@
+<!-- 添加条件 -->
+<button nz-button nzType="primary"
+        nz-dropdown [nzDropdownMenu]="condition">
+  {{'menu.data.create.custom.add.field.filter.condition' | i18n}}
+  <i nz-icon nzType="down"></i>
+</button>
+<nz-dropdown-menu #condition="nzDropdownMenu">
+  <ul nz-menu nzSelectable>
+    <li nz-menu-item (click)="addFilterCondition('AND',0)">增加且条件</li>
+    <li nz-menu-item (click)="addFilterCondition('OR',0)">增加或条件</li>
+  </ul>
+</nz-dropdown-menu>
+<!-- 添加公式 -->
+<button nz-button nzType="default"
+        *ngIf="!conditionOnly"
+        nz-dropdown [nzDropdownMenu]="formula">
+  {{'menu.data.create.custom.add.field.filter.formula' | i18n}}
+  <i nz-icon nzType="down"></i>
+</button>
+<nz-dropdown-menu #formula="nzDropdownMenu">
+  <ul nz-menu nzSelectable>
+    <li nz-menu-item (click)="addFilterCondition('AND',1)">增加且公式</li>
+    <li nz-menu-item (click)="addFilterCondition('OR',1)">增加或公式</li>
+  </ul>
+</nz-dropdown-menu>
+
+<div class="mt-sm border-right-1 border-top-1 overflow-auto filterCondition" *ngIf="filterData?.operator">
+  <ng-container *ngTemplateOutlet="filterRef; context: { $implicit: filterData }"></ng-container>
+</div>
+<ng-template #filterRef let-param>
+  <div class="filterPane">
+    <div class="filterOperation  border-left-1 border-bottom-1" *ngIf="param.expression?.length > 1">
+      {{param.operator == 'AND' ? '且' : '或'}}
+    </div>
+
+    <div class="filterContent">
+      <ng-template #filterItemRef let-item="item" let-i="i" let-parentFilter="parentFilter">
+        <div class="filterItem border-left-1 border-bottom-1">
+          <div class="filterCon">
+            <!--请选择字段-->
+            <button *ngIf="item.type == 0 && !item.selectField" nz-button nzType="primary"
+                    nzTrigger="click"
+                    nz-dropdown
+                    [nzDropdownMenu]="selectDataSetRef">{{'menu.data.create.custom.add.field.filter.select-field' | i18n}}</button>
+            <!--请选择字段后的字段列表-->
+            <nz-dropdown-menu #selectDataSetRef="nzDropdownMenu">
+              <ul nz-menu nzSelectable>
+                <ng-container *ngIf="selectDataSetList.length > 1">
+                  <li nz-submenu [nzTitle]="dataSet.tableName" *ngFor="let dataSet of selectDataSetList">
+                    <ul>
+                      <li nz-menu-item (click)="clickField(item, field, dataSet.setId)"
+                          *ngFor="let field of dataSet.fieldsList">
+                        {{field.fieldName}}
+                      </li>
+                    </ul>
+                  </li>
+                </ng-container>
+                <ng-container *ngIf="selectDataSetList.length == 1">
+                  <li nz-menu-item (click)="clickField(item, field, selectDataSetList[0].setId)"
+                      *ngFor="let field of selectDataSetList[0].fieldsList">
+                    {{field.fieldName}}
+                  </li>
+                </ng-container>
+              </ul>
+            </nz-dropdown-menu>
+            <!--展示内容-->
+            <div *ngIf="item.type == 0 && item.selectField">
+              <span class="mr-sm">{{item.selectField.fieldName}}</span>
+              <ng-container [ngSwitch]="item.selectField.fieldType">
+                <ng-container *ngSwitchCase="'NUM'">
+                  <!--数字计算方法-->
+                  <nz-select class="calcMethod" [(ngModel)]="item.calcMethodKey"
+                             (ngModelChange)="selectCalcMethod(item,'fieldNumCalcMethod')">
+                    <nz-option *ngFor="let calcMethod of dataUtil.fieldNumCalcMethod" [nzValue]="calcMethod.key"
+                               [nzLabel]="calcMethod.name"></nz-option>
+                  </nz-select>
+                  <!--只有一个输入框-->
+                  <ng-container *ngIf="item.calcMethod?.inputSize == 1">
+                    <nz-input-number [(ngModel)]="item.calcMethod.v1"></nz-input-number>
+                  </ng-container>
+                  <!--两个输入框，目前只考虑介于和不介于这种情况-->
+                  <ng-container *ngIf="item.calcMethod?.inputSize == 2">
+                    <nz-input-number [(ngModel)]="item.calcMethod.v1"></nz-input-number>
+                    <nz-select style="width: 70px;" [(ngModel)]="item.calcMethod.operator1">
+                      <nz-option *ngFor="let less of lessOperatorList" [nzValue]="less.name"
+                                 [nzLabel]="less.name"></nz-option>
+                    </nz-select>
+                    值
+                    <nz-select style="width: 70px;" [(ngModel)]="item.calcMethod.operator2">
+                      <nz-option *ngFor="let less of lessOperatorList" [nzValue]="less.name"
+                                 [nzLabel]="less.name"></nz-option>
+                    </nz-select>
+                    <nz-input-number [(ngModel)]="item.calcMethod.v2"></nz-input-number>
+                  </ng-container>
+                </ng-container>
+                <ng-container *ngSwitchCase="'STRING'">
+                  <!--文本计算方法-->
+                  <nz-select class="calcMethod" [(ngModel)]="item.calcMethodKey"
+                             (ngModelChange)="loadFieldValue($event,item)">
+                    <nz-option *ngFor="let calcMethod of dataUtil.fieldStringCalcMethod"
+                               [nzValue]="calcMethod.key" [nzLabel]="calcMethod.name"></nz-option>
+                  </nz-select>
+                  <!--一个输入框-->
+                  <div *ngIf="item.calcMethod?.inputType != 'select'" style="display: inline-block">
+                    <input nz-input [(ngModel)]="item.calcMethod.v1"/>
+                  </div>
+                  <!--计算方法为：属于/不属于。需要查询，渲染为下拉选择框-->
+                  <ng-container *ngIf="item.calcMethod?.inputType == 'select'" style="display: inline-block">
+                    <nz-select
+                      [nzMaxTagCount]="2"
+                      (nzScrollToBottom)="loadMoreFieldValue(item)"
+                      [nzAutoClearSearchValue]="false"
+                      style="min-width: 200px;"
+                      nzMode="multiple"
+                      nzPlaceHolder="搜索字段"
+                      nzAllowClear
+                      nzShowSearch
+                      nzServerSearch
+                      [(ngModel)]="item.selectFieldValue"
+                      (nzOnSearch)="searchFieldValue(item,$event)">
+                      <ng-container *ngFor="let fieldValue of item.fieldValue">
+                        <nz-option [nzValue]="fieldValue"
+                                   [nzLabel]="fieldValue"
+                        ></nz-option>
+                      </ng-container>
+                      <nz-option *ngIf="item.isLoading" nzDisabled nzCustomContent>
+                        <i nz-icon nzType="loading" class="loading-icon"></i>
+                        {{'menu.data.create.custom.add.field.filter.load-data' | i18n}}
+                      </nz-option>
+                    </nz-select>
+                  </ng-container>
+                </ng-container>
+                <ng-container *ngSwitchCase="'TIMESTAMP'">
+                  <!--日期计算方法-->
+                  <nz-select class="calcMethod" [(ngModel)]="item.calcMethodKey"
+                             (ngModelChange)="selectCalcMethod(item,'fieldDateCalcMethod')">
+                    <nz-option *ngFor="let calcMethod of dataUtil.fieldDateCalcMethod" [nzValue]="calcMethod.key"
+                               [nzLabel]="calcMethod.name"></nz-option>
+                  </nz-select>
+                  <!--只有一个输入框-->
+                  <ng-container *ngIf="item.calcMethod?.inputSize == 1">
+                    <nz-date-picker [(ngModel)]="item.calcMethod.v1"
+                                    nzShowTime
+                                    nzFormat="yyyy-MM-dd HH:mm:ss"></nz-date-picker>
+                  </ng-container>
+                  <!--两个输入框，目前只考虑介于和不介于这种情况-->
+                  <ng-container *ngIf="item.calcMethod?.inputSize == 2">
+                    <nz-date-picker [(ngModel)]="item.calcMethod.v1"
+                                    nzShowTime
+                                    nzFormat="yyyy-MM-dd HH:mm:ss"></nz-date-picker>
+                    <nz-date-picker [(ngModel)]="item.calcMethod.v2"
+                                    nzShowTime
+                                    nzFormat="yyyy-MM-dd HH:mm:ss"></nz-date-picker>
+                  </ng-container>
+                </ng-container>
+              </ng-container>
+            </div>
+            <!--请编辑公式-->
+            <div *ngIf="item.type == 1" style="display: flex">
+              <span class="mr-sm" style="flex: 0 0 30px">满足</span>
+              <div style="display: inline-block;flex: 1 1 auto;">
+                <input nz-input placeholder="请编辑公式"
+                       readonly
+                       [(ngModel)]="item.codeShowValue"
+                       nz-popover
+                       nzPopoverTitle=""
+                       nzPopoverTrigger="click"
+                       [nzPopoverContent]="editFormulaRef"
+                       [(nzPopoverVisible)]="item.dropDownVisible"
+                       nzPopoverPlacement="bottomLeft"
+                       [nzPopoverOverlayStyle]="{'width': '700px','background': '#fff',border: '1px solid #f0f0f0'}"/>
+              </div>
+              <!--编辑公式-->
+              <ng-template #editFormulaRef class="border-1">
+                <hc-edit-formula #hcEditFormula
+                                 [(funList)]="funList"
+                                 [(codeValidity)]="item.codeValidity"
+                                 [chartId]="chartId"
+                                 [isAddField]="false"
+                                 [(code)]="item.code"
+                                 [selectDataSetList]="selectDataSetList">
+                </hc-edit-formula>
+                <div class="modal-footer" style="margin:0;">
+                  <button nz-button type="button"
+                          (click)="closeFormula(item, hcEditFormula)">{{'button.close.text' | translate}}</button>
+                  <button nz-button type="button" [disabled]="item.codeValidity == false" (click)="saveFormula(item)"
+                          [nzType]="'primary'">{{'button.save.text' | translate}}</button>
+                </div>
+              </ng-template>
+            </div>
+          </div>
+          <!--删除-->
+          <button class="delete" nz-button nzType="link" (click)="deleteFilter(i,parentFilter)">
+            <i nz-icon nzType="delete" nzTheme="outline"></i>
+          </button>
+        </div>
+      </ng-template>
+      <!-- 自己本身是INNER_GET -->
+      <ng-container *ngIf="param.operator === 'INNER_GET'">
+        <ng-container
+          *ngTemplateOutlet="filterItemRef; context: { item: param,i: -1,parentFilter: param }"></ng-container>
+      </ng-container>
+      <ng-container *ngFor="let item of param.expression;let i = index">
+        <!-- 有嵌套操作 -->
+        <ng-container *ngIf="item.operator === 'AND'  || item.operator === 'OR'">
+          <ng-container *ngTemplateOutlet="filterRef; context: { $implicit: item }"></ng-container>
+        </ng-container>
+        <!-- 表达式 -->
+        <ng-container *ngIf="item.operator === 'INNER_GET'">
+          <ng-container
+            *ngTemplateOutlet="filterItemRef; context: { item: item,i: i, parentFilter: param }"></ng-container>
+        </ng-container>
+      </ng-container>
+    </div>
+
+  </div>
+</ng-template>
+
