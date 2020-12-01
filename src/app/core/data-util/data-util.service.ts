@@ -4,6 +4,7 @@ import {CalcMethod} from "../../interfaces/data-set-interface";
 @Injectable({
   providedIn: 'root'
 })
+
 export class DataUtilService {
 
   /**
